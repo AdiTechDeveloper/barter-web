@@ -39,7 +39,8 @@ export default function BrowseListings() {
         }
         return null;
       })
-      .filter((c) => c && c.name);
+      .filter((c) => c && c.name)
+      .filter((c) => c.slug.toLowerCase() !== "all");
 
     const seen = new Set();
     const unique = mapped.filter((c) => {

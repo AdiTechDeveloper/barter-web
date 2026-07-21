@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { barterService } from "../../services/app";
-import BarterOfferCard from "./BarterOfferCard";
 import toast from "react-hot-toast";
+import { barterService, extractErrorMessage } from "../../services/app";
+import BarterOfferCard from "./BarterOfferCard";
 
 export default function BarterOffers() {
   const [subTab, setSubTab] = useState("incoming");
@@ -13,6 +13,7 @@ export default function BarterOffers() {
   const fetchOffers = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const [incomingData, outgoingData] = await Promise.all([
         barterService.getIncoming(),
         barterService.getOutgoing(),
@@ -20,7 +21,7 @@ export default function BarterOffers() {
       setIncoming(incomingData);
       setOutgoing(outgoingData);
     } catch (err) {
-      toast.error(extractErrorMessage(err));
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -37,6 +38,17 @@ export default function BarterOffers() {
     );
   };
 
+  // 👇 Naya: complete action, dono lists me relevant offer update karega
+  const handleMarkComplete = async (offerId) => {
+    const updatedOffer = await barterService.markComplete(offerId);
+
+    const applyUpdate = (list) =>
+      list.map((o) => (o.id === offerId ? { ...o, ...updatedOffer } : o));
+
+    setIncoming((prev) => applyUpdate(prev));
+    setOutgoing((prev) => applyUpdate(prev));
+  };
+
   const pendingIncomingCount = incoming.filter(
     (o) => (o.status || "pending") === "pending",
   ).length;
@@ -44,7 +56,6 @@ export default function BarterOffers() {
 
   return (
     <div>
-      {/* Sub-tabs */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setSubTab("incoming")}
@@ -106,6 +117,7 @@ export default function BarterOffers() {
               offer={offer}
               type={subTab}
               onStatusChange={handleStatusChange}
+              onMarkComplete={handleMarkComplete}
             />
           ))}
         </div>

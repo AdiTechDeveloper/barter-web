@@ -147,7 +147,7 @@ export default function ProposeTradeModal({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2.5 mb-5 max-h-52 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5 max-h-64 overflow-y-auto pr-1">
                 {myItems.map((item) => (
                   <button
                     key={item.id}
@@ -170,7 +170,7 @@ export default function ProposeTradeModal({
                         }}
                       />
                     </div>
-                    <p className="text-[10px] font-semibold text-ink px-1.5 py-1.5 line-clamp-1">
+                    <p className="text-[10px] font-semibold text-ink px-1.5 py-1.5 line-clamp-2 leading-snug min-h-[2.4em]">
                       {item.title}
                     </p>
                   </button>

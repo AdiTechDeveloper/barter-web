@@ -51,7 +51,8 @@ const TrashIcon = () => (
 
 const STATUS_CONFIG = {
   available: { label: "Available", className: "bg-brand text-white" },
-  bartered: { label: "Traded", className: "bg-ink/75 text-white" },
+  in_trade: { label: "Traded", className: "bg-ink/75 text-white" },
+  traded: { label: "Traded", className: "bg-ink/75 text-white" },
 };
 
 export default function MyListings() {

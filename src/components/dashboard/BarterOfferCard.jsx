@@ -1,23 +1,30 @@
 import React, { useState } from "react";
-import ReviewModal from "./ReviewModal";
 import toast from "react-hot-toast";
+import ReviewModal from "./ReviewModal";
 import { extractErrorMessage } from "../../services/app";
 
 const statusStyles = {
   pending: "bg-accent/10 text-accent",
   accepted: "bg-brand/10 text-brand",
+  completed: "bg-brand text-white",
   rejected: "bg-border text-muted",
 };
 
 const statusLabel = {
   pending: "Pending",
   accepted: "Accepted",
+  completed: "Completed",
   rejected: "Rejected",
 };
 
-export default function BarterOfferCard({ offer, type, onStatusChange }) {
+export default function BarterOfferCard({
+  offer,
+  type,
+  onStatusChange,
+  onMarkComplete,
+}) {
   const [acting, setActing] = useState(false);
-  const [localError, setLocalError] = useState("");
+  const [completing, setCompleting] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewed, setReviewed] = useState(offer.has_review || false);
 
@@ -27,6 +34,12 @@ export default function BarterOfferCard({ offer, type, onStatusChange }) {
   const receiverUser = offer.receiver || offer.receiver_user || {};
   const otherUser = type === "incoming" ? senderUser : receiverUser;
   const status = offer.status || "pending";
+
+  // Current user ka completion flag — incoming = receiver, outgoing = sender
+  const myCompletionFlag =
+    type === "incoming" ? offer.receiver_completed : offer.sender_completed;
+  const otherCompletionFlag =
+    type === "incoming" ? offer.sender_completed : offer.receiver_completed;
 
   const handleAction = async (newStatus) => {
     setActing(true);
@@ -39,6 +52,18 @@ export default function BarterOfferCard({ offer, type, onStatusChange }) {
       toast.error(extractErrorMessage(err));
     } finally {
       setActing(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    setCompleting(true);
+    try {
+      await onMarkComplete(offer.id);
+      toast.success("Marked as complete!");
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -121,10 +146,7 @@ export default function BarterOfferCard({ offer, type, onStatusChange }) {
         </p>
       )}
 
-      {localError && (
-        <p className="text-xs text-accent font-semibold mt-3">{localError}</p>
-      )}
-
+      {/* Accept / Decline — sirf incoming + pending */}
       {type === "incoming" && status === "pending" && (
         <div className="flex gap-2.5 mt-4">
           <button
@@ -144,7 +166,26 @@ export default function BarterOfferCard({ offer, type, onStatusChange }) {
         </div>
       )}
 
-      {status === "accepted" && !reviewed && (
+      {/* Mark Complete — accepted status me, dono taraf se */}
+      {status === "accepted" && !myCompletionFlag && (
+        <button
+          onClick={handleComplete}
+          disabled={completing}
+          className="w-full mt-4 bg-brand text-white text-xs font-bold py-2.5 rounded-full hover:bg-brand-dark transition disabled:opacity-50"
+        >
+          {completing ? "Please wait..." : "Mark Trade as Complete"}
+        </button>
+      )}
+
+      {status === "accepted" && myCompletionFlag && !otherCompletionFlag && (
+        <p className="text-[11px] text-accent font-semibold mt-4 text-center bg-accent/5 rounded-full py-2">
+          ✓ You confirmed. Waiting for {otherUser?.name || "the other trader"}{" "}
+          to confirm.
+        </p>
+      )}
+
+      {/* Review — sirf completed status me */}
+      {status === "completed" && !reviewed && (
         <button
           onClick={() => setShowReviewModal(true)}
           className="w-full mt-4 bg-cream border border-border text-ink text-xs font-bold py-2.5 rounded-full hover:border-brand/50 hover:text-brand transition"
@@ -153,7 +194,7 @@ export default function BarterOfferCard({ offer, type, onStatusChange }) {
         </button>
       )}
 
-      {status === "accepted" && reviewed && (
+      {status === "completed" && reviewed && (
         <p className="text-[11px] text-brand font-semibold mt-4 text-center">
           ✓ You've reviewed this trade
         </p>

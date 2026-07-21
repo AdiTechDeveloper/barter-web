@@ -179,6 +179,11 @@ export const barterService = {
     });
     return response.data?.data || response.data;
   },
+
+  markComplete: async (offerId) => {
+    const response = await apiClient.post(`/barter-offers/${offerId}/complete`);
+    return response.data?.data || response.data;
+  },
 };
 
 export const reviewService = {

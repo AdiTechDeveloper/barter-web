@@ -81,9 +81,17 @@ export default function ItemFormModal({ item, onClose, onSaved }) {
         .forEach((img) => formData.append("images[]", img.file));
 
       if (isEditMode) {
-        imageItems
+        const originalImageIds = (item.images || []).map((img) => img.id);
+        const retainedImageIds = imageItems
           .filter((img) => img.type === "existing" && img.id)
-          .forEach((img) => formData.append("existing_image_ids[]", img.id));
+          .map((img) => img.id);
+        const removedImageIds = originalImageIds.filter(
+          (id) => !retainedImageIds.includes(id),
+        );
+
+        removedImageIds.forEach((id) =>
+          formData.append("remove_image_ids[]", id),
+        );
       }
 
       if (isEditMode) {
