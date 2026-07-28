@@ -218,4 +218,11 @@ export const searchHistoryService = {
   },
 };
 
+export const contactService = {
+  send: async (payload) => {
+    const response = await apiClient.post("/contact", payload);
+    return response.data;
+  },
+};
+
 export default apiClient;

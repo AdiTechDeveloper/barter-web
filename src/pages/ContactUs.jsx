@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 import {
   Mail,
   Phone,
@@ -8,9 +9,12 @@ import {
   ShieldCheck,
   Headphones,
   CheckCircle2,
-  Building2,
-  ArrowRight,
 } from "lucide-react";
+import { contactService, extractErrorMessage } from "../services/app";
+import { SpinnerIcon } from "../components/Icons";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[+]?[\d\s-]{7,15}$/;
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -22,16 +26,97 @@ export default function ContactUs() {
     message: "",
   });
 
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const validate = () => {
+    const errs = {};
+
+    if (!formData.fullName.trim()) {
+      errs.fullName = "Full name is required.";
+    } else if (formData.fullName.trim().length < 3) {
+      errs.fullName = "Name must be at least 3 characters.";
+    }
+
+    if (!formData.email.trim()) {
+      errs.email = "Work email is required.";
+    } else if (!EMAIL_REGEX.test(formData.email.trim())) {
+      errs.email = "Enter a valid email address.";
+    }
+
+    if (formData.phone.trim() && !PHONE_REGEX.test(formData.phone.trim())) {
+      errs.phone = "Enter a valid phone number.";
+    }
+
+    if (!formData.message.trim()) {
+      errs.message = "Please tell us how we can help.";
+    } else if (formData.message.trim().length < 10) {
+      errs.message = "Message must be at least 10 characters.";
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        full_name: formData.fullName,
+        work_email: formData.email,
+        phone_no: formData.phone,
+        company_name: formData.companyName,
+        enquiry_type: formData.inquiryType,
+        how_can_we_help: formData.message,
+      };
+
+      const response = await contactService.send(payload);
+      toast.success(
+        response?.message || "Your message has been sent successfully!",
+      );
+      setSubmitted(true);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      fullName: "",
+      email: "",
+      phone: "",
+      companyName: "",
+      inquiryType: "General Inquiry",
+      message: "",
+    });
+    setErrors({});
+    setSubmitted(false);
+  };
+
+  const inputClass = (field) =>
+    `w-full px-4 py-3 text-xs md:text-sm bg-white border rounded-xl focus:outline-none text-ink placeholder:text-slate-400 font-medium transition-all ${
+      errors[field]
+        ? "border-accent focus:border-accent"
+        : "border-border/80 focus:border-brand/60"
+    }`;
 
   const contactMethods = [
     {
@@ -51,24 +136,6 @@ export default function ContactUs() {
       title: "Headquarters",
       detail: "BKC Commercial Hub, Bandra East",
       subDetail: "Mumbai, Maharashtra 400051",
-    },
-  ];
-
-  const highlights = [
-    {
-      icon: Headphones,
-      title: "Dedicated Deal Advisors",
-      desc: "Get paired with an enterprise transaction specialist to guide your trade setup.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Strict Confidentiality",
-      desc: "All initial discussions and asset details are protected under automatic non-disclosure.",
-    },
-    {
-      icon: CheckCircle2,
-      title: "Rapid Matchmarking",
-      desc: "Our platform matches institutional counter-parties in as fast as 48 hours.",
     },
   ];
 
@@ -103,7 +170,7 @@ export default function ContactUs() {
                   Reach Out Directly
                 </span>
                 <h2 className="font-display font-bold text-2xl md:text-3xl text-ink tracking-tight mt-2">
-                  Let’s discuss your asset exchange goals
+                  Let's discuss your asset exchange goals
                 </h2>
                 <p className="text-xs md:text-sm text-slate-600 leading-relaxed font-medium mt-3">
                   Whether you are looking to unlock liquidity from surplus
@@ -112,7 +179,6 @@ export default function ContactUs() {
                 </p>
               </div>
 
-              {/* Cards List */}
               <div className="space-y-4">
                 {contactMethods.map((method, idx) => {
                   const MethodIcon = method.icon;
@@ -140,7 +206,6 @@ export default function ContactUs() {
                 })}
               </div>
 
-              {/* Operating Hours Box */}
               <div className="bg-brand/5 rounded-2xl border border-brand/15 p-6 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center shrink-0">
                   <Clock size={20} />
@@ -168,60 +233,65 @@ export default function ContactUs() {
                     specialist will review your details and contact you shortly.
                   </p>
                   <button
-                    onClick={() => setSubmitted(false)}
+                    onClick={resetForm}
                     className="mt-4 px-6 py-2.5 rounded-xl bg-brand text-white font-bold text-xs tracking-wide hover:bg-brand/90 transition-all"
                   >
                     Send Another Message
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                   <div className="border-b border-border/60 pb-4 mb-6">
                     <h3 className="text-base font-bold text-ink tracking-tight">
                       Send Us a Message
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                      Fill out the form below and we’ll get back to you within
+                      Fill out the form below and we'll get back to you within
                       24 hours.
                     </p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-5">
-                    {/* Full Name */}
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                         Full Name *
                       </label>
                       <input
                         type="text"
-                        required
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
                         placeholder="e.g. Rajesh Sharma"
-                        className="w-full px-4 py-3 text-xs md:text-sm bg-white border border-border/80 rounded-xl focus:outline-none focus:border-brand/60 text-ink placeholder:text-slate-400 font-medium transition-all"
+                        className={inputClass("fullName")}
                       />
+                      {errors.fullName && (
+                        <p className="text-[11px] text-accent font-semibold">
+                          {errors.fullName}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Email Address */}
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                         Work Email *
                       </label>
                       <input
                         type="email"
-                        required
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="name@company.com"
-                        className="w-full px-4 py-3 text-xs md:text-sm bg-white border border-border/80 rounded-xl focus:outline-none focus:border-brand/60 text-ink placeholder:text-slate-400 font-medium transition-all"
+                        className={inputClass("email")}
                       />
+                      {errors.email && (
+                        <p className="text-[11px] text-accent font-semibold">
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-5">
-                    {/* Phone Number */}
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                         Phone Number
@@ -232,11 +302,15 @@ export default function ContactUs() {
                         value={formData.phone}
                         onChange={handleChange}
                         placeholder="+91 98765 43210"
-                        className="w-full px-4 py-3 text-xs md:text-sm bg-white border border-border/80 rounded-xl focus:outline-none focus:border-brand/60 text-ink placeholder:text-slate-400 font-medium transition-all"
+                        className={inputClass("phone")}
                       />
+                      {errors.phone && (
+                        <p className="text-[11px] text-accent font-semibold">
+                          {errors.phone}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Company Name */}
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                         Company / Entity Name
@@ -247,12 +321,11 @@ export default function ContactUs() {
                         value={formData.companyName}
                         onChange={handleChange}
                         placeholder="e.g. Apex Enterprises"
-                        className="w-full px-4 py-3 text-xs md:text-sm bg-white border border-border/80 rounded-xl focus:outline-none focus:border-brand/60 text-ink placeholder:text-slate-400 font-medium transition-all"
+                        className={inputClass("companyName")}
                       />
                     </div>
                   </div>
 
-                  {/* Inquiry Type Select */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                       Inquiry Type
@@ -279,29 +352,36 @@ export default function ContactUs() {
                     </select>
                   </div>
 
-                  {/* Message */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-extrabold uppercase tracking-wider text-ink">
                       How Can We Help? *
                     </label>
                     <textarea
-                      required
                       rows={4}
                       name="message"
                       value={formData.message}
                       onChange={handleChange}
                       placeholder="Please share details about your inquiry or the asset you are interested in trading..."
-                      className="w-full px-4 py-3 text-xs md:text-sm bg-white border border-border/80 rounded-xl focus:outline-none focus:border-brand/60 text-ink placeholder:text-slate-400 font-medium transition-all resize-none"
+                      className={`${inputClass("message")} resize-none`}
                     />
+                    {errors.message && (
+                      <p className="text-[11px] text-accent font-semibold">
+                        {errors.message}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Submit Button */}
                   <button
                     type="submit"
-                    className="w-full py-3.5 px-6 rounded-xl bg-brand text-white font-bold text-xs tracking-wider uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-brand/90 transition-all duration-200"
+                    disabled={submitting}
+                    className="w-full py-3.5 px-6 rounded-xl bg-brand text-white font-bold text-xs tracking-wider uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-brand/90 transition-all duration-200 disabled:opacity-70"
                   >
-                    <Send size={16} />
-                    Submit Request
+                    {submitting ? (
+                      <SpinnerIcon className="w-4 h-4" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                    {submitting ? "Sending..." : "Submit Request"}
                   </button>
                 </form>
               )}
